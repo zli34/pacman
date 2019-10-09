@@ -23,6 +23,13 @@ import { IntelRwPacmanController } from "../backend/intel_rwPacman_controller";
 import { ProbAssign } from "../backend/assign_prob";
 import { IntelRwPacmanPost } from "../backend/intel_rwPacman_post";
 import { RwPacmanGhostControllerRL } from "../backend/rwPacman_ghost_RL_controller";
+import { DotPacmanGhostControllerRL } from "../backend/dotPacman_ghost_RL_controller";
+import { trainGhostControllerRL } from "../backend/train_ghost_RL_controller";
+import { testGhostControllerRL} from "../backend/test_ghost_RL_controller"
+import { AvoidRwPacmanPost } from "../backend/avoid_rwPacman_post";
+import { ClosestRwPacmanPost } from "../backend/closest_rwPacman_post";
+import { DotRwPacmanController } from "../backend/dot_rwPacman_controller";
+import { Post } from "../backend/post";
 
 export class PePacmanGame extends Phaser.Game {
     constructor(num_tiles_x: number, num_tiles_y: number, tile_dim: number,
@@ -52,11 +59,12 @@ export class PePacmanState extends Phaser.State {
     pacman: Pacman;
     pacman_controller: Controller;
     pacman_sprite: PacmanSprite;
-
-    post: RwPacmanPost;
+    
+    posts: Array<Post>;
 
     ghosts: Array<Ghost>;
     ghost_controllers: Controller;
+    //ghost_controllers: trainGhostControllerRL;
     ghost_sprites: Array<GhostSprite>;
 
     box: GhostBox;
@@ -82,6 +90,12 @@ export class PePacmanState extends Phaser.State {
 
     restart: boolean;
 
+    timeText: Phaser.Text;
+
+    dotCount: number;
+
+    win: boolean;
+
     constructor(num_tiles_x: number, num_tiles_y: number,
         tile_dim: number, walls: Array<Wall>, dots: Array<Dot>) {
         super();
@@ -93,6 +107,8 @@ export class PePacmanState extends Phaser.State {
         this.dots = dots;
         this.score = 0;
         this.restart = false;
+        this.dotCount = 0;
+        this.win = true;
 
     }
 
@@ -124,7 +140,7 @@ export class PePacmanState extends Phaser.State {
         this.game.time.slowMotion = 20.0;
 
         // text
-        this.overText = this.game.add.text(200, 0, 'Game Over.', 
+        this.overText = this.game.add.text(180, 20, 'Game Over', 
         {font: '16px Arial', fill: '#fff'});
         this.overText.visible = false;
         this.powerText = this.game.add.text(100, 0, 'Power time:' + 0, 
@@ -133,15 +149,19 @@ export class PePacmanState extends Phaser.State {
         this.scoreText = this.game.add.text(0, 0, 'Score:', 
         {font: '16px Arial', fill: '#fff'});
         this.scoreText.visible = true;
-        this.winText = this.game.add.text(200, 0, 'You win!', 
+        this.winText = this.game.add.text(180, 20, 'You win!!!', 
         {font: '16px Arial', fill: '#fff'})
         this.winText.visible = false;
+
+        this.timeText = this.game.add.text(300, 0, 'Time:' + 0,
+        {font: '16px Arial', fill: '#fff'});
+        this.timeText.visible = true;
         
 
         // backend objects
         this.board = new Board(this.num_tiles_x, this.num_tiles_y, this.dots);
 
-        this.pacman = new Pacman(this.board, 14, 26.5, 1);
+        this.pacman = new Pacman(this.board, 14.5, 26.5, 1);
 
         this.box = new GhostBox(this.board, 10, 15, 8, 5,
             [new Slot(12, 17, 12, 17.5, 12, 18), new Slot(14, 17, 14, 17.5, 14, 18), new Slot(16, 17, 16, 17.5, 16, 18)]);
@@ -150,15 +170,24 @@ export class PePacmanState extends Phaser.State {
 
         for (var i = 0; i < 4; i++){
             if (i != 3){
-                this.ghosts.push(new Ghost(this.board, false, null, null, 2,
+                this.ghosts.push(new Ghost(this.board, false, null, null, 1,
                     this.box));
             }
             else{
-                this.ghosts.push(new Ghost(this.board, true, 14, 14.5, 2, this.box));
+                this.ghosts.push(new Ghost(this.board, true, 14, 14.5, 1, this.box));
             }
         }
 
-        this.ghost_controllers = new RwPacmanGhostController(this.ghosts, this.board);
+        this.ghost_controllers = new RedGhostController(this.ghosts, this.board)
+        //this.ghost_controllers = new RwPacmanGhostController(this.ghosts, this.board);
+        //this.ghost_controllers = new DotPacmanGhostControllerRL(this.ghosts, this.board, 5);
+        //this.ghost_controllers = new trainGhostControllerRL(this.ghosts, this.board, 5, 0.01, JSON.parse(localStorage.getItem('param_list')));
+        //this.ghost_controllers = new testGhostControllerRL(this.ghosts, this.board, JSON.parse(localStorage.getItem('param_list')));
+        //this.ghost_controllers = new trainGhostControllerRL(this.ghosts, this.board, 5, 0.01, null);
+        var test: Array<Array<Array<number>>> = JSON.parse(localStorage.getItem('param_list'));
+        for (var k = 0; k < 256; k++){
+        console.log('test' + k + ': ' + test[1][k]);
+        }
         //this.ghost_controllers = new RwPacmanGhostControllerRL(this.ghosts, 
         //    this.board, 5);
         //this.ghost_controllers.push(new RedGhostController(
@@ -171,20 +200,35 @@ export class PePacmanState extends Phaser.State {
         //this.pacman_controller = new RwPacmanController(
         //    this.pacman, this.board);
 
+
         //this.pacman_controller = new IntelRwPacmanController(
         //    this.pacman, this.board, 0.5);
 
-         this.post = new RwPacmanPost(this.board, this.ghosts, this.pacman, 
-            [this.pacman.spot], 5);
+        //this.pacman_controller = new DotRwPacmanController(
+        //    this.pacman, this.board, 0);
         
-        //this.post = new IntelRwPacmanPost(this.board, this.ghosts, this.pacman,
+
+        this.posts = new Array<Post>();
+         this.posts.push(new RwPacmanPost(this.board, this.ghosts, this.pacman, 
+            [this.pacman.spot], 5));
+
+        //this.posts.push(new AvoidRwPacmanPost(this.board, this.ghosts, this.pacman, 
+        //    [this.pacman.spot], 5));
+
+        this.posts.push(new ClosestRwPacmanPost(this.board, this.ghosts, this.pacman, 
+            [this.pacman.spot], 5, 0.1));
+        
+        //this.post2 = new IntelRwPacmanPost(this.board, this.ghosts, this.pacman,
         // [this.pacman.spot], 5, 0.5, new RwPacmanPost(this.board, this.ghosts,
         // this.pacman, [this.pacman.spot], 5))
-        //this.post.update();
+        for (var b = 0; b < this.posts.length; b++){
+        this.posts[b].update(-1);
+        this.posts[b].num_points = 0;
+        }
 
 
         this.dynamics = new Dynamics(this.pacman, this.ghosts, this.board,
-            this.pacman_controller, this.ghost_controllers, this.post, this);
+            this.pacman_controller, this.ghost_controllers, this.posts, this);
 
         this.tick = 0;
 
@@ -204,9 +248,9 @@ export class PePacmanState extends Phaser.State {
         this.pacman_sprite.animations.add('down', [14, 15, 16, 17, 18, 19, 20], 14, true);
         this.pacman_sprite.animations.add('left', [28, 29, 30, 31, 32, 33, 34], 14, true);
         this.pacman_sprite.animations.add('up', [42, 43, 44, 45, 46, 47, 48], 14, true);
-console.log(this.pacman_sprite.frame);
+//console.log(this.pacman_sprite.frame);
         this.pacman_sprite.animations.play('up');
-console.log(this.pacman_sprite.frame);
+//console.log(this.pacman_sprite.frame);
 
         this.ghost_sprites = new Array<GhostSprite>();
         var c = 0;
@@ -233,7 +277,8 @@ console.log(this.pacman_sprite.frame);
         }
 
         var target_spots: Array<number> = (new ProbAssign(this.board, this.ghosts, 
-            this.post.probs)).bestProbs();
+            this.posts[0].probs)).bestProbs();
+//console.log(1111);
 
         this.prob_sprites = new Array<ProbSprite>();
         for (var i = 0; i < this.ghosts.length; i++){
@@ -241,7 +286,7 @@ console.log(this.pacman_sprite.frame);
              this.tile_dim, target_spots[i]));
         }
         for (var i = 0; i < this.ghosts.length; i++){
-            //this.prob_sprites[i].visible = false;
+            this.prob_sprites[i].visible = false;
         }
 
 
@@ -367,12 +412,18 @@ console.log(this.pacman_sprite.frame);
         }
 
     else {
-        this.pacman_sprite.visible = false;
-        for (let gs of this.ghost_sprites){
-            gs.visible = false;
+        //localStorage.setItem("param_list", JSON.stringify(this.ghost_controllers.param_list));
+        for (let ps of this.prob_sprites){
+            ps.visible = false;
         }
-        //for (let ps of this.prob_sprites){
-        //    ps.visible = false;
+        if (this.win === false){
+        this.pacman_sprite.visible = false;
+        }
+        else{
+            this.game.paused = true;
+        }
+        //for (let gs of this.ghost_sprites){
+        //    gs.visible = false;
         //}
     }
 }
