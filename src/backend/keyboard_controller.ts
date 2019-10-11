@@ -4,6 +4,8 @@ import { Pacman } from "./pacman";
 import { Ghost } from "./ghost";
 import { Board } from "./board";
 import { RwPacmanPost } from "./pacman_post";
+import { AvoidRwPacmanPost } from "./avoid_rwPacman_post";
+import { Post } from "./post";
 
 export class KeyboardController extends Controller {
     last_press: number;
@@ -38,7 +40,7 @@ export class KeyboardController extends Controller {
         }, this);
     }
 
-    select_actions(pacman: Pacman, ghosts: Array<Ghost>, post: RwPacmanPost = null): Array<number> {
+    select_actions(pacman: Pacman, ghosts: Array<Ghost>, posts: Array<Post> = null): Array<number> {
         return [this.last_press];
     }
 }

@@ -4,8 +4,9 @@ import { Board } from "./board";
 import { Controller } from "./controller";
 import { Dot } from "./dot";
 import { RwPacmanPost } from "./pacman_post";
+import { Post } from "./post";
 
-export class IntelRwPacmanPost {
+export class AvoidRwPacmanPost extends Post{
     board: Board;
     ghosts: Array<Ghost>;
     pacman: Pacman;
@@ -14,13 +15,13 @@ export class IntelRwPacmanPost {
     num_points: number;
     starting_loc_choices: Array<number>;
     trans_mat: Array<Array<number>>;
+    trans_mat_random: Array<Array<number>>;
     ghost_vision_limit: number;
-    w: number;
-    post: RwPacmanPost;
     K: number;
 
     constructor(board: Board, ghosts: Array<Ghost>, pacman: Pacman, starting_loc_choices: Array<number>,
-    ghost_vision_limit: number, w: number, post: RwPacmanPost){
+    ghost_vision_limit: number){
+        super();
         this.board = board;
         this.ghosts = ghosts;
         this.pacman = pacman;
@@ -29,8 +30,6 @@ export class IntelRwPacmanPost {
         this.num_points = 0;
         this.starting_loc_choices = starting_loc_choices;
         this.ghost_vision_limit = ghost_vision_limit;
-        this.w = w;
-        this.post = post;
         this.K = 1;
 
         this.trans_mat = new Array(this.board.dots.length);
@@ -38,11 +37,40 @@ export class IntelRwPacmanPost {
             this.trans_mat[i] = new Array<number>(this.board.dots.length);
         }
 
+        // random transition matrix
+        this.trans_mat_random = new Array(this.board.dots.length);
+        for (var i = 0; i < this.board.dots.length; i++){
+            this.trans_mat_random[i] = new Array<number>(this.board.dots.length);
+            var dot = this.board.get_dot(i, true);
+            var walkable_spots = new Array<number>();
+        if (dot.up >= 0){
+            walkable_spots.push(this.board.tile_to_spot[dot.up]);
+        }
+        if (dot.down >= 0){
+            walkable_spots.push(this.board.tile_to_spot[dot.down]);
+        }
+        if (dot.left >= 0){
+            walkable_spots.push(this.board.tile_to_spot[dot.left]);
+        }
+        if (dot.right >= 0){
+            walkable_spots.push(this.board.tile_to_spot[dot.right]);
+        }
+        var prob = 1 / walkable_spots.length;
+        for (var j = 0; j < this.board.dots.length; j++){
+            if (walkable_spots.indexOf(j) >= 0){
+                this.trans_mat_random[i][j] = prob;
+            }
+            else{
+                this.trans_mat_random[i][j] = 0;
+            }
+        }
+        
+        }
+
     }
 
-    update(): void{
+    update(informant: number): void{
         var sum = 0;
-        //this.post.update();
         this.updateTransMat();
         if (this.num_points === 0){
             // initialize probs_new and uniform over each starting location
@@ -58,9 +86,33 @@ export class IntelRwPacmanPost {
                 this.probs[i] = this.probs_new[i];
             }
 
-            // adjust for ghosts' locations and vision limit
+            // adjust for dots' and ghosts' locations and vision limit
+            // adjust for dots
+            var end = 0;
+            var prob_info = 1;
+            var record = new Array<number>();
+            if (informant >= 0){
+                for (var i = 0; i < this.board.dots.length; i++){
+                    this.probs[i] = 0;
+                }
+                this.probs[this.pacman.spot] = 1;
+                this.K *= this.probs_new[this.pacman.spot];
+                end = 1;
+            }
+            else{
+                for (let dot of this.board.dots){
+                    if (dot.is_alive() && dot.kind != 0){
+                        this.probs[dot.spot] = 0;
+                        prob_info -= this.probs_new[dot.spot];
+                        record.push(dot.spot);
+                    }
+                }
+
+            }
+
+            // adjust for ghosts
+            if (end === 0){
             for (let g of this.ghosts){
-                var ghost_dot = this.board.get_dot(g.spot, true);
                 if (this.pacman.x >= g.x - this.ghost_vision_limit && this.pacman.x <= g.x +
                 this.ghost_vision_limit && this.pacman.y >= g.y - this.ghost_vision_limit &&
                 this.pacman.y <= g.y + this.ghost_vision_limit){
@@ -68,11 +120,10 @@ export class IntelRwPacmanPost {
                         this.probs[i] = 0;
                     }
                     this.probs[this.pacman.spot] = 1;
+                    this.K *= this.probs_new[this.pacman.spot];
                     break;
                 }
                 else{
-                    var prob_info = 1;
-                    var record = new Array<number>();
                     for (var i = 0; i < this.board.dots.length; i++){
                         var dot = this.board.get_dot(i, true);
                         var spot_tl_x = (dot.tile % this.board.num_tiles_x);
@@ -87,10 +138,10 @@ export class IntelRwPacmanPost {
                             }
                         }
                     }
-                    this.K *= prob_info;
-                }
-                
-            }
+                }//else
+            }//for
+        this.K *= prob_info;
+        }//if end === 0
 
             // scale the probability (F)
             for (var i = 0; i < this.board.dots.length; i++){
@@ -134,9 +185,33 @@ export class IntelRwPacmanPost {
             for (var i = 0; i < this.board.dots.length; i++){
                 this.probs[i] = this.probs_new[i];
             }
-            // adjust for ghosts' locations and vision limit
+            // adjust for dots' and ghosts' locations and vision limit
+            // adjust for dots
+            var end = 0;
+            var prob_info = 1;
+            var record = new Array<number>();
+            if (informant >= 0){
+                for (var i = 0; i < this.board.dots.length; i++){
+                    this.probs[i] = 0;
+                }
+                this.probs[this.pacman.spot] = 1;
+                this.K *= this.probs_new[this.pacman.spot];
+                end = 1;
+            }
+            else{
+                for (let dot of this.board.dots){
+                    if (dot.is_alive() && dot.kind != 0){
+                        this.probs[dot.spot] = 0;
+                        prob_info -= this.probs_new[dot.spot];
+                        record.push(dot.spot);
+                    }
+                }
+
+            }
+
+            // adjust for ghosts
+            if (end === 0){
             for (let g of this.ghosts){
-                var ghost_dot = this.board.get_dot(g.spot, true);
                 if (this.pacman.x >= g.x - this.ghost_vision_limit && this.pacman.x <= g.x +
                 this.ghost_vision_limit && this.pacman.y >= g.y - this.ghost_vision_limit &&
                 this.pacman.y <= g.y + this.ghost_vision_limit){
@@ -144,11 +219,10 @@ export class IntelRwPacmanPost {
                         this.probs[i] = 0;
                     }
                     this.probs[this.pacman.spot] = 1;
+                    this.K *= this.probs_new[this.pacman.spot];
                     break;
                 }
                 else{
-                    var prob_info = 1;
-                    var record = new Array<number>();
                     for (var i = 0; i < this.board.dots.length; i++){
                         var dot = this.board.get_dot(i, true);
                         var spot_tl_x = (dot.tile % this.board.num_tiles_x);
@@ -163,11 +237,11 @@ export class IntelRwPacmanPost {
                             }
                         }
                     }
-                    this.K *= prob_info;
-                }
-                
-            }
-
+                }//else
+            }//for
+        this.K *= prob_info;
+        }//if end === 0
+        
             // scale the probability (F)
             for (var i = 0; i < this.board.dots.length; i++){
                 sum += this.probs[i];
@@ -186,8 +260,19 @@ export class IntelRwPacmanPost {
             var dot: Dot = this.board.get_dot(i, true);
 
             var walkable_spots = new Array<number>();
-            var best_pf = Infinity;
+            var best_pf = -Infinity;
             var pfs = Array<number>(4);
+            
+            var dot_x: number = dot.tile % this.board.num_tiles_x;
+                var dot_y: number = Math.floor(dot.tile
+                / this.board.num_tiles_x);
+            var c = 0;
+            for (let g of this.ghosts){
+                //var ghost_dot = this.board.get_dot(g.spot, true);
+                if (dot_x + 0.5 >= g.x - this.ghost_vision_limit && dot_x + 0.5 <= g.x +
+                this.ghost_vision_limit && dot_y + 0.5 >= g.y - this.ghost_vision_limit &&
+                dot_y + 0.5 <= g.y + this.ghost_vision_limit){
+                c = 1;
             if (dot.up >= 0){
                 var x: number = dot.up % this.board.num_tiles_x;
                 var y: number = Math.floor(dot.up
@@ -195,18 +280,10 @@ export class IntelRwPacmanPost {
                 var pf: number = 0;
 
                 // distance between the ghosts and dest_dot.up
-                for (var i = 0; i < this.ghosts.length; i++){
-                    pf += 1 / ((x - this.ghosts[i].x) * (x - this.ghosts[i].x) + 
-                    (y - this.ghosts[i].y) * (y - this.ghosts[i].y));
-                }
-                pf = 0.5 * this.w * pf;
-
-                // posterior probability
-                pf += (1 - this.w) * this.post.probs[this.board.tile_to_spot[dot.up]];
-
+                pf = (x - g.x) * (x - g.x) + (y - g.y) * (y - g.y);
                 pfs[0] = pf;
 
-                if (pf < best_pf){
+                if (pf > best_pf){
                     best_pf = pf;
                 }
             }
@@ -216,19 +293,12 @@ export class IntelRwPacmanPost {
                 / this.board.num_tiles_x);
                 var pf: number = 0;
 
-                // distance between the ghosts and dest_dot.down
-                for (var i = 0; i < this.ghosts.length; i++){
-                    pf += 1 / ((x - this.ghosts[i].x) * (x - this.ghosts[i].x) + 
-                    (y - this.ghosts[i].y) * (y - this.ghosts[i].y));
-                }
-                pf = 0.5 * this.w * pf;
-
-                // posterior probability
-                pf += (1 - this.w) * this.post.probs[this.board.tile_to_spot[dot.down]];
+                // distance between the ghosts and dest_dot.up
+                pf = (x - g.x) * (x - g.x) + (y - g.y) * (y - g.y);
 
                 pfs[1] = pf;
 
-                if (pf < best_pf){
+                if (pf > best_pf){
                     best_pf = pf;
                 }
             }
@@ -238,19 +308,12 @@ export class IntelRwPacmanPost {
                 / this.board.num_tiles_x);
                 var pf: number = 0;
 
-                // distance between the ghosts and dest_dot.left
-                for (var i = 0; i < this.ghosts.length; i++){
-                    pf += 1 / ((x - this.ghosts[i].x) * (x - this.ghosts[i].x) + 
-                    (y - this.ghosts[i].y) * (y - this.ghosts[i].y));
-                }
-                pf = 0.5 * this.w * pf;
-
-                // posterior probability
-                pf += (1 - this.w) * this.post.probs[this.board.tile_to_spot[dot.left]];
+                // distance between the ghosts and dest_dot.up
+                pf = (x - g.x) * (x - g.x) + (y - g.y) * (y - g.y);
 
                 pfs[2] = pf;
 
-                if (pf < best_pf){
+                if (pf > best_pf){
                     best_pf = pf;
                 }
             }
@@ -260,24 +323,17 @@ export class IntelRwPacmanPost {
                 / this.board.num_tiles_x);
                 var pf: number = 0;
 
-                // distance between the ghosts and dest_dot.right
-                for (var i = 0; i < this.ghosts.length; i++){
-                    pf += 1 / ((x - this.ghosts[i].x) * (x - this.ghosts[i].x) + 
-                    (y - this.ghosts[i].y) * (y - this.ghosts[i].y));
-                }
-                pf = 0.5 * this.w * pf;
-
-                // posterior probability
-                pf += (1 - this.w) * this.post.probs[this.board.tile_to_spot[dot.right]];
+                // distance between the ghosts and dest_dot.up
+                pf = (x - g.x) * (x - g.x) + (y - g.y) * (y - g.y);
 
                 pfs[3] = pf;
 
-                if (pf < best_pf){
+                if (pf > best_pf){
                     best_pf = pf;
                 }
             }
 
-            if (dot.up >= 0&& pfs[0] === best_pf){
+            if (dot.up >= 0 && pfs[0] === best_pf){
                 walkable_spots.push(this.board.tile_to_spot[dot.up]);
             }
             if (dot.down >= 0 && pfs[1] === best_pf){
@@ -299,8 +355,15 @@ export class IntelRwPacmanPost {
                     this.trans_mat[i][j] = 0;
                 }
             }
+            break;
             }
-
+        }
+            if (c === 0){
+            for (var j = 0; j < this.board.dots.length; j++){
+                this.trans_mat[i][j] = this.trans_mat_random[i][j]
+            }
+            }
     }
+}
  
 }

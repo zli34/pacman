@@ -4,6 +4,10 @@ import { Unit } from "./unit";
 import { Pacman } from "./pacman";
 import { Ghost } from "./ghost";
 import { RwPacmanPost } from "./pacman_post";
+import { IntelRwPacmanPost } from "./intel_rwPacman_post";
+import { AvoidRwPacmanPost } from "./avoid_rwPacman_post";
+import { ClosestRwPacmanPost } from "./closest_rwPacman_post";
+import { Post } from "./post";
 
 export abstract class Controller {
     readonly units: Array<Unit>;
@@ -21,7 +25,7 @@ export abstract class Controller {
     //    ghosts: Array<Ghost>): Array<number>;
 
     abstract select_actions(pacman: Pacman,
-        ghosts: Array<Ghost>, post: RwPacmanPost): Array<number>;
+        ghosts: Array<Ghost>, posts: Array<Post>): Array<number>;
 
     assign_actions(actions: Array<number>): void {
         if (actions.length != this.num_units) {

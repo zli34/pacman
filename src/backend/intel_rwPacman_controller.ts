@@ -5,6 +5,10 @@ import { Ghost } from "./ghost";
 import { Board } from "./board";
 import { Dot } from "./dot";
 import { RwPacmanPost } from "./pacman_post";
+import { IntelRwPacmanPost } from "./intel_rwPacman_post";
+import { AvoidRwPacmanPost } from "./avoid_rwPacman_post";
+import { ClosestRwPacmanPost } from "./closest_rwPacman_post";
+import { Post } from "./post";
 
 export class IntelRwPacmanController extends Controller {
     // weight
@@ -15,7 +19,8 @@ export class IntelRwPacmanController extends Controller {
         this.w = w;
     }
 
-    select_actions(pacman: Pacman, ghosts: Array<Ghost>, post: RwPacmanPost, target_spot: number = null): Array<number> {
+    select_actions(pacman: Pacman, ghosts: Array<Ghost>, 
+        posts: Array<Post> = null,target_spot: number = null): Array<number> {
         var dest_dot: Dot;
         if (this.units[0].dest_spot === -1){
             dest_dot = this.board.get_dot(this.units[0].spot, true);
@@ -43,7 +48,7 @@ export class IntelRwPacmanController extends Controller {
             pf = 0.5 * this.w * pf;
 
             // posterior probability
-            pf += (1 - this.w) * post.probs[this.board.tile_to_spot[dest_dot.up]];
+            pf += (1 - this.w) * posts[0].probs[this.board.tile_to_spot[dest_dot.up]];
 
             pfs[0] = pf;
 
@@ -65,7 +70,7 @@ export class IntelRwPacmanController extends Controller {
             pf = 0.5 * this.w * pf;
 
             // posterior probability
-            pf += (1 - this.w) * post.probs[this.board.tile_to_spot[dest_dot.down]];
+            pf += (1 - this.w) * posts[0].probs[this.board.tile_to_spot[dest_dot.down]];
 
             pfs[1] = pf;
 
@@ -87,7 +92,7 @@ export class IntelRwPacmanController extends Controller {
             pf = 0.5 * this.w * pf;
 
             // posterior probability
-            pf += (1 - this.w) * post.probs[this.board.tile_to_spot[dest_dot.left]];
+            pf += (1 - this.w) * posts[0].probs[this.board.tile_to_spot[dest_dot.left]];
 
             pfs[2] = pf;
 
@@ -109,7 +114,7 @@ export class IntelRwPacmanController extends Controller {
             pf = 0.5 * this.w * pf;
 
             // posterior probability
-            pf += (1 - this.w) * post.probs[this.board.tile_to_spot[dest_dot.right]];
+            pf += (1 - this.w) * posts[0].probs[this.board.tile_to_spot[dest_dot.right]];
 
             pfs[3] = pf;
 
