@@ -30,6 +30,7 @@ import { AvoidRwPacmanPost } from "../backend/avoid_rwPacman_post";
 import { ClosestRwPacmanPost } from "../backend/closest_rwPacman_post";
 import { DotRwPacmanController } from "../backend/dot_rwPacman_controller";
 import { Post } from "../backend/post";
+import { Sprite } from "phaser";
 
 export class PePacmanGame extends Phaser.Game {
     constructor(num_tiles_x: number, num_tiles_y: number, tile_dim: number,
@@ -96,6 +97,16 @@ export class PePacmanState extends Phaser.State {
 
     win: boolean;
 
+    pauseButton: Sprite;
+
+    refresh: boolean;
+
+    startButton: Sprite;
+
+    test: Array<Array<Array<number>>>;
+
+    startText: Phaser.Text;
+
     constructor(num_tiles_x: number, num_tiles_y: number,
         tile_dim: number, walls: Array<Wall>, dots: Array<Dot>) {
         super();
@@ -109,6 +120,7 @@ export class PePacmanState extends Phaser.State {
         this.restart = false;
         this.dotCount = 0;
         this.win = true;
+        this.refresh = false;
 
     }
 
@@ -130,14 +142,19 @@ export class PePacmanState extends Phaser.State {
         this.game.load.image('OrangeLeft', 'orange-left.png');
         this.game.load.image('OrangeRight', 'orange-right.png');
         this.game.load.image('VulnerableGhost', 'vulnerable-ghost.png');
+        this.game.load.image('restart', 'restart.png')
+        this.game.load.image('start', 'start.png')
 
         this.game.load.spritesheet('Pacman', 'Pacman.png', 32, 32, 49);
         this.game.load.spritesheet('Death', 'death.png', 32, 32, 54);
+
+        this.load.text('mytext', 'test.txt');
     }
 
     create() {
         this.load.start();
         this.game.time.slowMotion = 20.0;
+        this.game.paused = true;
 
         // text
         this.overText = this.game.add.text(180, 20, 'Game Over', 
@@ -156,7 +173,23 @@ export class PePacmanState extends Phaser.State {
         this.timeText = this.game.add.text(300, 0, 'Time:' + 0,
         {font: '16px Arial', fill: '#fff'});
         this.timeText.visible = true;
+
+        this.startText = this.game.add.text(140, 20, 'Press start button to play!', {font: '16px Arial', fill: '#fff'});
+        this.startText.visible = true;
         
+        // pause button
+        this.pauseButton = this.game.add.sprite(420, 0, 'restart');
+        this.pauseButton.width = 20; this.pauseButton.height = 20;
+        this.pauseButton.inputEnabled = true;
+        this.pauseButton.events.onInputUp.add(function () {this.refresh = true; this.game.paused = false;},this);
+        this.game.input.onDown.add(function () {if(this.game.paused)this.game.paused = false;},this);
+
+        // start button
+        this.startButton = this.game.add.sprite(390, 0, 'start');
+        this.startButton.width = 20; this.startButton.height = 20;
+        this.startButton.inputEnabled = true;
+        this.startButton.events.onInputUp.add(function () {this.game.paused = false; this.startText.visible = false;},this);
+        this.game.input.onDown.add(function () {if(this.game.paused)this.game.paused = false; this.startText.visible = false;},this);
 
         // backend objects
         this.board = new Board(this.num_tiles_x, this.num_tiles_y, this.dots);
@@ -178,16 +211,58 @@ export class PePacmanState extends Phaser.State {
             }
         }
 
-        this.ghost_controllers = new RedGhostController(this.ghosts, this.board)
+        //this.ghost_controllers = new RedGhostController(this.ghosts, this.board)
         //this.ghost_controllers = new RwPacmanGhostController(this.ghosts, this.board);
         //this.ghost_controllers = new DotPacmanGhostControllerRL(this.ghosts, this.board, 5);
         //this.ghost_controllers = new trainGhostControllerRL(this.ghosts, this.board, 5, 0.01, JSON.parse(localStorage.getItem('param_list')));
         //this.ghost_controllers = new testGhostControllerRL(this.ghosts, this.board, JSON.parse(localStorage.getItem('param_list')));
         //this.ghost_controllers = new trainGhostControllerRL(this.ghosts, this.board, 5, 0.01, null);
-        var test: Array<Array<Array<number>>> = JSON.parse(localStorage.getItem('param_list'));
-        for (var k = 0; k < 256; k++){
-        console.log('test' + k + ': ' + test[1][k]);
+        //var test: Array<Array<Array<number>>> = JSON.parse(localStorage.getItem('param_list'));
+
+        var text: string = this.cache.getText('mytext');
+        var data1: Array<string> = text.split(',');   
+        var p: number = 0;
+        this.test = new Array<Array<Array<number>>>(2);
+        for (var b = 0; b < 2; b++){
+            this.test[b] = new Array<Array<number>>(256);
+        for (var i = 0; i < 256; i++){
+            var temp = new Array<number>(12);
+            for (var j = 0; j < 12; j++){
+                temp[j] = Number(data1[p]);
+                p += 1;
+            }
+            this.test[b][i] = temp;
         }
+        }
+        this.ghost_controllers = new testGhostControllerRL(this.ghosts, this.board, this.test);
+        
+        //var text: string = test.toString();
+        function download(filename:string, text:string) {
+            var pom = document.createElement('a');
+            pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            pom.setAttribute('download', filename);
+        
+            if (document.createEvent) {
+                var event = document.createEvent('MouseEvents');
+                event.initEvent('click', true, true);
+                pom.dispatchEvent(event);
+            }
+            else {
+                pom.click();
+            }
+        }
+        //download('test.txt', text);
+        //fetch('test.txt').then(response => response.text()).then((data) => {
+        //    doSomething(data)
+        //})
+        //var fs = require('fs');
+        //text = fs.readFileSync("text.txt").toString('utf-8');
+        //console.log('text');
+
+
+        //for (var k = 0; k < 256; k++){
+        //console.log('test' + k + ': ' + test[1][k]);
+        //}
         //this.ghost_controllers = new RwPacmanGhostControllerRL(this.ghosts, 
         //    this.board, 5);
         //this.ghost_controllers.push(new RedGhostController(
@@ -426,6 +501,110 @@ export class PePacmanState extends Phaser.State {
         //    gs.visible = false;
         //}
     }
+
+    if (this.refresh){
+        this.dynamics.death.kill();
+        this.refresh = false;
+        this.pacman_sprite.kill();
+        for (let gs of this.ghost_sprites){
+            gs.kill();
+        }
+        for (let ds of this.dot_sprites){
+            ds.kill();
+        }
+        //this.game.paused = false;
+        this.score = 0;
+        this.restart = false;
+        this.dotCount = 0;
+        this.win = true;
+        this.overText.visible = false;
+        for (let dot of this.dots){
+            dot.alive = true;
+        }
+        this.dot_sprites = new Array<DotSprite>();
+        for (let dot of this.dynamics.board.dots) {
+            this.dot_sprites.push(new DotSprite(this.game, this.dynamics.board,
+                this.tile_dim, dot));
+        }
+        this.pacman = new Pacman(this.board, 14.5, 26.5, 1);
+
+        this.box = new GhostBox(this.board, 10, 15, 8, 5,
+            [new Slot(12, 17, 12, 17.5, 12, 18), new Slot(14, 17, 14, 17.5, 14, 18), new Slot(16, 17, 16, 17.5, 16, 18)]);
+
+        this.ghosts = new Array<Ghost>();
+
+        for (var i = 0; i < 4; i++){
+            if (i != 3){
+                this.ghosts.push(new Ghost(this.board, false, null, null, 1,
+                    this.box));
+            }
+            else{
+                this.ghosts.push(new Ghost(this.board, true, 14, 14.5, 1, this.box));
+            }
+        }
+
+        //this.ghost_controllers = new RedGhostController(this.ghosts, this.board);
+        this.ghost_controllers = new testGhostControllerRL(this.ghosts, this.board, this.test);
+        this.pacman_controller = new KeyboardController(
+            this.game.input.keyboard, this.pacman, this.board);
+        
+        this.posts = new Array<Post>();
+         this.posts.push(new RwPacmanPost(this.board, this.ghosts, this.pacman, 
+            [this.pacman.spot], 5));
+
+        this.posts.push(new ClosestRwPacmanPost(this.board, this.ghosts, this.pacman, 
+            [this.pacman.spot], 5, 0.1));
+        
+        for (var b = 0; b < this.posts.length; b++){
+        this.posts[b].update(-1);
+        this.posts[b].num_points = 0;
+        }
+        this.dynamics = new Dynamics(this.pacman, this.ghosts, this.board,
+            this.pacman_controller, this.ghost_controllers, this.posts, this);
+
+        this.tick = 0;
+
+
+        // frontend objects
+        this.dot_sprites = new Array<DotSprite>();
+
+        this.pacman_sprite = new PacmanSprite(this.game, this.dynamics.board,
+            this.tile_dim,
+            this.dynamics.pacman);
+        this.pacman_sprite.loadTexture('Pacman');
+        this.pacman_sprite.width = this.pacman_sprite.tile_dim * 1.5;
+        this.pacman_sprite.height = this.pacman_sprite.tile_dim * 1.5;
+        this.pacman_sprite.frame = 42;
+        this.pacman_sprite.animations.add('right', [0, 1, 2, 3, 4, 5, 6], 14, true);
+        this.pacman_sprite.animations.add('down', [14, 15, 16, 17, 18, 19, 20], 14, true);
+        this.pacman_sprite.animations.add('left', [28, 29, 30, 31, 32, 33, 34], 14, true);
+        this.pacman_sprite.animations.add('up', [42, 43, 44, 45, 46, 47, 48], 14, true);
+        this.pacman_sprite.animations.play('up');
+
+        this.ghost_sprites = new Array<GhostSprite>();
+        var c = 0;
+        for (let g of this.ghosts) {
+            var GS = new GhostSprite(this.game,
+                this.dynamics.board, this.tile_dim, g);
+            if (c == 0){
+                GS.loadTexture('RedUp');
+            }
+            if (c == 1){
+                GS.loadTexture('PinkDown');
+            }
+            if (c == 2){
+                GS.loadTexture('BlueUp');
+            }
+            if (c == 3){
+                GS.loadTexture('OrangeDown');
+            }
+            c++;
+            GS.width = GS.tile_dim * 1.5;
+            GS.height = GS.tile_dim * 1.5;
+            this.ghost_sprites.push(GS);
+
+        }
+        }
 }
 
     render() {
