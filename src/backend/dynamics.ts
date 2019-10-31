@@ -12,6 +12,7 @@ import { IntelRwPacmanPost } from "./intel_rwPacman_post";
 import { AvoidRwPacmanPost } from "./avoid_rwPacman_post";
 import { ClosestRwPacmanPost } from "./closest_rwPacman_post";
 import { Post } from "./post";
+import { Sprite } from "phaser";
 
 export class Dynamics {
     pacman: Pacman;
@@ -32,6 +33,7 @@ export class Dynamics {
     memory_energy_dots: Array<Dot>;
 
     informant: number;
+    death: Sprite;
 
     constructor(pacman: Pacman, ghosts: Array<Ghost>,
         board: Board, pacman_controller: Controller,
@@ -56,6 +58,15 @@ export class Dynamics {
         this.memory_energy_dots = new Array<Dot>();
 
         this.informant = -1;
+
+        this.death = this.state.game.add.sprite(
+            (this.pacman.x - 0.5) * this.state.tile_dim,
+             (this.pacman.y - 1) * this.state.tile_dim, 'Death');
+        this.death.visible = false;
+        this.death.width = this.state.tile_dim * 1.5;
+        this.death.height = this.state.tile_dim * 1.5;
+        this.death.frame = 51;
+        this.death.animations.add('ani', [51, 42, 43, 44], 2, false);
 
     }
 
@@ -180,16 +191,12 @@ export class Dynamics {
                 g.ticks_per_spot = 1;
                 if (this.pacman.x >= g.x - 1 && this.pacman.x <= g.x + 1 &&
                     this.pacman.y >= g.y - 1 && this.pacman.y <= g.y + 1){
-                var death = this.state.game.add.sprite(
-                    (this.pacman.x - 0.5) * this.state.tile_dim,
-                     (this.pacman.y - 1) * this.state.tile_dim, 'Death');
-        death.width = this.state.tile_dim * 1.5;
-        death.height = this.state.tile_dim * 1.5;
-        death.frame = 51;
-        death.animations.add('ani', [51, 42, 43, 44], 2, false);
-death.animations.play('ani');
-this.state.overText.visible = true;
-this.state.win = false;
+                        this.death.x = (this.pacman.x - 0.5) * this.state.tile_dim;
+                        this.death.y = (this.pacman.y - 1) * this.state.tile_dim;
+                        this.death.visible = true;
+                        this.death.animations.play('ani');
+                        this.state.overText.visible = true;
+                        this.state.win = false;
 
 //this.state.game.paused = true;
 
