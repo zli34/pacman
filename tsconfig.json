@@ -5,7 +5,9 @@
         "outDir": "./build/",
         "preserveConstEnums": true,
         "removeComments": true,
-        "target": "ES5",
+        //"target": "ES5",
+        "target": "es2015",
+        "lib": [ "dom", "es2015" ],
         "sourceMap": true
     },
     "exclude": [

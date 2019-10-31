@@ -25,6 +25,10 @@ var config = {
     resolve: {
         extensions: [".ts", ".tsx", ".js"]
     },
+    
+    node: {
+        fs: "empty"
+    },
 
     module: {
         /*
